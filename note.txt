@@ -1,0 +1,1 @@
+- Expand trigger mention to avoid mismarking
