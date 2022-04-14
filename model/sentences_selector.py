@@ -1,6 +1,4 @@
 from collections import defaultdict
-from email.policy import default
-from turtle import forward
 from typing import List
 import torch
 import torch.nn as nn
@@ -74,8 +72,8 @@ class SOT(nn.Module):
             host_id = host_sent_id[i]
             context_id = list(set(range(ns)) - set(host_id))
             context_sent_id.append(context_id)
-            _host_sentence_emb = sentences_emb[i][host_id]
-            _context_sentence_emb = sentences_emb[i][context_id]
+            _host_sentence_emb = sentences_emb[i, host_id]
+            _context_sentence_emb = sentences_emb[i, context_id]
             _null_presenation = torch.mean(_context_sentence_emb, dim=0).unsqueeze(0)
             _host_sentence_emb = torch.cat([_null_presenation, _host_sentence_emb], dim=0)
             host_sentence_emb.append(_host_sentence_emb)
@@ -85,7 +83,7 @@ class SOT(nn.Module):
             _host_maginal = torch.cat([torch.Tensor([self.null_prob]), (1 - self.null_prob) * _host_maginal], dim=0)
             _context_maginal = torch.tensor(context_id, dtype=torch.float)
             _context_maginal = torch.stack([_context_maginal - host_id[0], _context_maginal - host_id[-1]], dim=0)
-            _context_maginal = torch.min(_context_maginal, dim=0)[0]
+            _context_maginal = torch.min(torch.abs(_context_maginal), dim=0)[0]
             _context_maginal = torch.softmax(_context_maginal, dim=0)
             host_maginal.append(_host_maginal)
             context_maginal.append(_context_maginal)
