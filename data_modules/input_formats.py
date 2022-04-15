@@ -32,19 +32,14 @@ class EEREInputFormat(BaseInputFormat):
     """
     The input format for EERE task
     """
+    name = 'EERE_MLM'
     def format_input(self, 
-                    example: InputExample, 
-                    selected_sentences: List[int], 
+                    context: str,
                     important_words: List[Tuple[int, str]], 
                     trigger1: List[Tuple[int, str]], 
                     trigger2: List[Tuple[int, str]], 
                     rel: str):
         template = "{context}.\n\n{trg1} is {rel} {trg2} because {impotant_words}"
-        
-        context = ""
-        for id, sentence in enumerate(example.doc_sentences):
-            if id in selected_sentences:
-                context += sentence
 
         important_words.extend(trigger1)
         important_words.extend(trigger2)
@@ -74,12 +69,12 @@ class EEREInputFormat(BaseInputFormat):
         
         input_ids = [self.tokenizer.cls_token_id]
         for ids, span in zip(label_ids[1:-1], subwords_span):
-            if span[0] in masked_char or span[1] in masked_char:
+            if span[0] in masked_char or span[1]-1 in masked_char:
                 input_ids.append(self.tokenizer.mask_token_id)
             else:
                 input_ids.append(ids)
         
-        return input_ids, label_ids
+        return input_ids, label_ids, label
 
  
 

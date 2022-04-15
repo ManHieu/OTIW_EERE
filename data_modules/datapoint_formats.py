@@ -61,9 +61,11 @@ def hieve_datapoint_v2(my_dict):
         for (eid1, eid2), rel in my_dict['relation_dict'].items():
             e1, e2 = my_dict['event_dict'][eid1], my_dict['event_dict'][eid2]
             _s1, _s2 = e1['sent_id'], e2['sent_id']
-            if (_s1 == s1 and _s2 == s2) or (_s1 == s2 and _s2 == s1):
-                e1_point = {'position': e1['token_id'], 'mention': e1['mention'], 'sid': _s1}
-                e2_point = {'position': e2['token_id'], 'mention': e2['mention'], 'sid': _s2}
+            e1_span = (e1['start_char'] - my_dict['sentences'][_s1]['sent_start_char'], e1['end_char'] - my_dict['sentences'][_s1]['sent_start_char'])
+            e2_span = (e2['start_char'] - my_dict['sentences'][_s2]['sent_start_char'], e2['end_char'] - my_dict['sentences'][_s2]['sent_start_char'])
+            if _s1 in [s1, s2] and _s2 in [s1, s2]:
+                e1_point = {'position': e1['token_id'], 'mention': e1['mention'],'sent_span': e1_span, 'sid': _s1}
+                e2_point = {'position': e2['token_id'], 'mention': e2['mention'],'sent_span': e2_span, 'sid': _s2}
                 if e1_point not in triggers:
                     triggers.append(e1_point)
                 if e2_point not in triggers:
@@ -71,6 +73,7 @@ def hieve_datapoint_v2(my_dict):
                 labels.append((triggers.index(e1_point), triggers.index(e2_point), rel))
         if len(labels) > 0:
             data_point = {
+                'host_ids': [s1, s2],
                 'doc_sentences': doc_sentences,
                 'triggers': triggers,
                 'relations': labels

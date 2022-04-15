@@ -10,26 +10,22 @@ from model.sinkhorn import SinkhornDistance
 
 class WOT(nn.Module):
     def __init__(self,
-                encoder: AutoModel,
                 OT_eps: float = 0.1,
                 OT_max_iter: int = 100,
                 OT_reduction: str = 'mean',
                 null_prob: float = 0.5,
                 ) -> None:
 
-        self.encoder = encoder
         self.sinkhorn = SinkhornDistance(eps=OT_eps, max_iter=OT_max_iter, reduction=OT_reduction)
         self.null_prob = null_prob
 
     def forward(self, 
-                input_ids: torch.Tensor,        # (bs, max_sq_len)
-                input_attn_mask: torch.Tensor,  # (bs, max_sq_len)
+                input_emb: torch.Tensor,       # (bs, ns, encoder_hidden_size)
                 trigger_pos: List[List[int]],
                 ls: List[int]
                 ):
         
         bs = len(trigger_pos)
-        input_emb = self.encoder(input_ids, input_attn_mask)[0]
 
         trigger_emb = []
         context_emb = []

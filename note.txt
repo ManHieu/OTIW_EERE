@@ -1,1 +1,4 @@
 - Expand trigger mention to avoid mismarking
+- Separate model param to optimize
+- Label vectors
+- Compute the embeding first after that pass it into important words selector 

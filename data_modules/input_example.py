@@ -35,14 +35,16 @@ class Entity:
     """
     mention: str = None                     # mention of entity
     type: Optional[EntityType] = None       # entity type
+    start_in_sent: int = None
+    end_in_sent: int = None
     sid: Optional[int] = None               # sentence id which containt entity
-    position: Optional[List[int]] = None    # possition of entity in sentence
+    position: Optional[List[int]] = None    # position of entity in sentence
 
     def to_tuple(self):
-        return self.type.natural, self.mention, self.sid, self.position
+        return self.type.natural, self.mention, self.sid, self.start_in_sent, self.end_in_sent
 
     def __hash__(self):
-        return hash((self.sid, self.mention, self.position))
+        return hash((self.sid, self.mention, self.start_in_sent, self.end_in_sent))
 
 
 @dataclass
@@ -68,4 +70,5 @@ class InputExample:
     triggers: List[Entity] = None
     relations: List[Relation] = None
     doc_sentences: List[str] = None
+    host_ids: List[int] = None
 

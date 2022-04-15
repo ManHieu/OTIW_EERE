@@ -131,7 +131,6 @@ def mapping_subtok_id(subtoks: List[str], tokens: List[str]):
     return dict(mapping_dict)
     
 
-
 def get_new_poss(poss_in_sent: int, new_sid: int, sent_span: Dict[int, Tuple[int, int, int]]):
     new_poss = poss_in_sent
     for _new_sid, _, _, sent_len in sent_span.values():

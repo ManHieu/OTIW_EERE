@@ -37,8 +37,9 @@ class SOT(nn.Module):
         self.null_prob = null_prob
     
     def encode(self, input_ids, attn_masks):
-        print(f"sentence_vector: {self.encoder(input_ids, attn_masks)[0][:, 0].size()}")
-        return self.encoder(input_ids, attn_masks)[0][:, 0] # (ns, encoder_hidden_size)
+        print(f"sentence_vector:")
+        hidden_states = self.encoder(input_ids, attn_masks, output_hidden_states=True).hidden_states
+        return hidden_states[-1][:, 0] # (ns, encoder_hidden_size)
     
     def encode_with_rnn(self, inp: torch.Tensor(), ls: List[int]) -> torch.Tensor(): # (batch_size, max_ns, hidden_dim*2)
         packed = pack_padded_sequence(inp, ls, batch_first=True, enforce_sorted=False)
