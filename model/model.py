@@ -14,11 +14,12 @@ from data_modules.input_formats import INPUT_FORMATS
 from data_modules.tools import padding, tokenized_to_origin_span
 from sentences_selector import SOT
 from important_word_selector import WOT
-from tools import compute_feature_for_augmented_seq, token_id_lookup
+from tools import compute_f1, compute_feature_for_augmented_seq, token_id_lookup
 
 
 class HOTIW_EERE(pl.LightningModule):
     def __init__(self,
+                dataset: str,
                 tokenizer_name: str,
                 pretrain_model_name: str,
                 rnn_hidden_size: int,
@@ -62,6 +63,8 @@ class HOTIW_EERE(pl.LightningModule):
                                         null_prob=word_null_prob,)
 
         self.input_format = INPUT_FORMATS[input_format](self.tokenizer)
+
+        self.model_results = []
 
     def forward(self, batch: List[InputExample]):
         doc_ids = []
@@ -125,6 +128,7 @@ class HOTIW_EERE(pl.LightningModule):
         label_ids = []
         labels = []
         ls = []
+        pairs = []
         for i in range(bs):
             seq = input_seqs[i]
             _important_words_ids = important_word_ids[i]
@@ -144,6 +148,7 @@ class HOTIW_EERE(pl.LightningModule):
             input_ids.append(_input_ids)
             label_ids.append(_label_ids)
             labels.append(_label)
+            pairs.append((''.join([sw for idx, sw in _head]), ''.join([sw for idx, sw in _tail])))
         max_ns = max(ls)
         input_ids = [padding(ids, max_sent_len=max_ns, pad_tok=self.tokenizer.pad_token_id) for ids in input_ids]
         label_ids = [padding(ids, max_sent_len=max_ns, pad_tok=self.tokenizer.pad_token_id) for ids in label_ids]
@@ -156,10 +161,10 @@ class HOTIW_EERE(pl.LightningModule):
         predicted_token_id = outputs.logits.argmax(axis=-1)
         predicted_seq = [self.tokenizer.decode(predicted_token_id[i]) for i in range(predicted_token_id.size(0))]
         mlm_loss = outputs.loss
-        return sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels
+        return sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels, pairs
     
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
-        sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels = self.forward(batch)
+        sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels, pairs = self.forward(batch)
         loss = self.hparams.w_sent_cost * sent_transport_cost \
                 + self.hparams.w_word_cost * word_transport_cost \
                 + (1.0 - self.hparams.w_sent_cost - self.hparams.w_word_cost) * mlm_loss
@@ -167,23 +172,62 @@ class HOTIW_EERE(pl.LightningModule):
         return loss
     
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
-        sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels = self.forward(batch)
-        return predicted_seq, labels
+        sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels, pairs = self.forward(batch)
+        return predicted_seq, labels, pairs
     
     def validation_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
         golds = []
         predicts = []
         preds = []
+        pairs = []
         for output in outputs:
             for sample in zip(*output):
                 predicts.append(sample[0])
                 golds.append(sample[1])
+                pairs.append(sample[2])
                 preds.append({
+                    'pairs': sample[2],
                     'predicted': sample[0],
                     'gold': sample[1]
                 })
+        p, r, f1 = compute_f1(dataset=self.hparams.dataset,
+                            golds=golds,
+                            predicts=predicts,
+                            pairs=pairs,
+                            report=True)
+        self.log_dict({'f1_dev': f1, 'p_dev': p, 'r_dev': r}, prog_bar=True)
         with open('./dev.json','w') as writer:
             writer.write(json.dumps(preds, indent=6)+'\n')
+        return f1
+    
+    def test_step(self, batch, batch_idx) -> STEP_OUTPUT:
+        sent_transport_cost, word_transport_cost, mlm_loss, predicted_seq, labels, pairs = self.forward(batch)
+        return predicted_seq, labels, pairs
+    
+    def test_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        golds = []
+        predicts = []
+        preds = []
+        pairs = []
+        for output in outputs:
+            for sample in zip(*output):
+                predicts.append(sample[0])
+                golds.append(sample[1])
+                pairs.append(sample[2])
+                preds.append({
+                    'pairs': sample[2],
+                    'predicted': sample[0],
+                    'gold': sample[1]
+                })
+        p, r, f1 = compute_f1(dataset=self.hparams.dataset,
+                            golds=golds,
+                            predicts=predicts,
+                            pairs=pairs,
+                            report=True)
+        with open('./test.json','w') as writer:
+            writer.write(json.dumps(preds, indent=6)+'\n')
+        
+        self.model_results = (p, r, f1)
     
     def configure_optimizers(self):
         """

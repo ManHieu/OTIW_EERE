@@ -1,4 +1,6 @@
 from typing import Dict, List, Tuple
+
+from sklearn.metrics import classification_report, confusion_matrix
 from data_modules.input_example import Relation
 
 
@@ -38,10 +40,49 @@ def token_id_lookup(token_span_SENT, start_char, end_char, start_id=0):
         if start_char in range(token_span[0], token_span[1]) or end_char in range(token_span[0], token_span[1]):
             idx.append(index)
     return idx
-    
 
-def compute_f1(predicts: List[str], golds: List[str]):
-    pass
+
+def get_rel(seq: str, pair: Tuple[str, str]):
+    template = seq.split(".\n\n")[-1]
+    trg1, trg2 = pair
+    rel = template.split("{trg1} is ".format(trg1=trg1))[1]
+    rel = rel.split(" {trg2} ".format(trg2))[0]
+    return rel
+
+def compute_f1(dataset: str, predicts: List[str], golds: List[str], pairs: List[Tuple[str, str]], report=False):
+    predict_rels = []
+    gold_rels = []
+    if dataset == "HiEve":
+        rel_idx = {
+            'super-event of': 0, 
+            'sub-event of': 1, 
+            'coreference with': 2, 
+            'non-relation with': 3
+        }
+    for pred, gold, pair in zip(predicts, golds, pairs):
+        pred_rel = get_rel(pred, pair)
+        pred_rel_idx = rel_idx.get(pred_rel) if rel_idx.get(pred_rel) != None else 3
+        gold_rel = get_rel(gold, pair)
+        gold_rel_idx = rel_idx[gold_rel]
+        predict_rels.append(pred_rel_idx)
+        gold_rels.append(gold_rel_idx)
+    
+    CM = confusion_matrix(gold_rels, predict_rels)
+    if dataset == "HiEve":
+        true = sum([CM[i, i] for i in range(2)])
+        sum_pred = sum([CM[i, 0:2].sum() for i in range(4)])
+        sum_gold = sum([CM[i].sum() for i in range(2)])
+        P = true / sum_pred
+        R = true / sum_gold
+        F1 = 2 * P * R / (P + R)
+    if report:
+        print(f"CM: \n{CM}")
+        print("Classification report: \n{}".format(classification_report(gold_rels, predict_rels)))     
+        print("  P: {0:.3f}".format(P))
+        print("  R: {0:.3f}".format(R))
+        print("  F1: {0:.3f}".format(F1))     
+    return P, R, F1
+
 
 
 

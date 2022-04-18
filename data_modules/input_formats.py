@@ -46,7 +46,8 @@ class EEREInputFormat(BaseInputFormat):
         important_words = sorted(important_words, key=lambda x: x[0])
         _important_words = ' '.join([word for idx, word in important_words])
 
-        label = template.format(context=context, trg1=trigger1[1], rel=rel, trg2=trigger2[1], important_words=_important_words)
+        trg1, trg2 = ''.join([sw for idx, sw in trigger1]), ''.join([sw for idx, sw in trigger2])
+        label = template.format(context=context, trg1=trg1, rel=rel, trg2=trg2, important_words=_important_words)
         
         label_ids = self.tokenizer(label).input_ids
         subwords = []
@@ -56,11 +57,11 @@ class EEREInputFormat(BaseInputFormat):
         subwords_span = tokenized_to_origin_span(label, subwords[1:-1]) # w/o <s> and </s> with RoBERTa
 
         masked_char = []
-        rel_start = len("{context}.\n\n{trg1} is ".format(context=context, trg1=trigger1[1]))
+        rel_start = len("{context}.\n\n{trg1} is ".format(context=context, trg1=trg1))
         rel_end = rel_start + len(rel)
         masked_char.extend(list(range(rel_start, rel_end)))
 
-        important_words_start = len("{context}.\n\n{trg1} is {rel} {trg2} because ".format(context=context, trg1=trigger1[1], rel=rel, trg2=trigger2[1]))
+        important_words_start = len("{context}.\n\n{trg1} is {rel} {trg2} because ".format(context=context, trg1=trg1, rel=rel, trg2=trg2))
         important_words_span = tokenized_to_origin_span(_important_words, [word for idx, word in important_words])
         trigger_idx = [idx for idx, tok in trigger1] + [idx for idx, tok in trigger2]
         for span, (idx, tok) in zip(important_words_span, important_words):
