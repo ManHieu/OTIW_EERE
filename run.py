@@ -18,7 +18,7 @@ from arguments import DataTrainingArguments, ModelArguments, TrainingArguments
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from data_modules.data_modules import load_data_module
 from data_modules.preprocess import Preprocessor
-from models.model import PlOTEERE
+from model.model import HOTIW_EERE
 import shutil
 
 
@@ -35,10 +35,6 @@ def run(defaults: Dict, random_state):
             defaults[key] = True if defaults[key]=='True' else False
         if defaults[key] == 'None':
             defaults[key] = None
-    if job == 'HiEve':
-        defaults['loss_weights'] = [5533.0/369, 5533.0/348, 5533.0/162, 5533.0/4554]
-    elif job == 'ESL':
-        defaults['loss_weights'] = [10.0, 1.0]
     
     # parse remaining arguments and divide them into three categories
     second_parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
@@ -106,11 +102,25 @@ def run(defaults: Dict, random_state):
                                     filename='{epoch}-{f1_dev:.2f}', # this cannot contain slashes 
                                     )
         lr_logger = LearningRateMonitor(logging_interval='step')
-        model = PlOTEERE(model_args=model_args,
-                        training_args=training_args,
-                        datasets=job,
-                        scratch_tokenizer=data_args.scratch_tokenizer_name_or_path
-                        # num_training_step=int(number_step_in_epoch * training_args.num_epoches)
+        model = HOTIW_EERE(dataset=job,
+                        tokenizer_name=data_args.tokenizer,
+                        pretrain_model_name=model_args.pretrained_model_name_or_path,
+                        rnn_hidden_size=model_args.rnn_hidden_size,
+                        rnn_num_layers=model_args.rnn_num_layers,
+                        lr=training_args.lr,
+                        warmup=training_args.warmup_ratio,
+                        adam_epsilon=training_args.adam_epsilon,
+                        weight_decay=training_args.weight_decay,
+                        w_sent_cost=training_args.sent_transport_cost,
+                        w_word_cost=training_args.word_transport_cost,
+                        input_format='EERE_MLM',
+                        is_finetune=training_args.fine_tune_sentence_level,
+                        OT_eps=model_args.OT_eps,
+                        OT_max_iter=model_args.OT_max_iter,
+                        OT_reduction=model_args.OT_reduction,
+                        dropout=model_args.dropout,
+                        sentence_null_prob=model_args.sentence_null_prob,
+                        word_null_prob=model_args.word_null_prob
                         )
         
         trainer = Trainer(
@@ -129,7 +139,7 @@ def run(defaults: Dict, random_state):
         dm.setup('fit')
         trainer.fit(model, dm)
 
-        best_model = PlOTEERE.load_from_checkpoint(checkpoint_callback.best_model_path)
+        best_model = HOTIW_EERE.load_from_checkpoint(checkpoint_callback.best_model_path)
         print("Testing .....")
         dm.setup('test')
         trainer.test(best_model, dm)
@@ -167,23 +177,20 @@ def run(defaults: Dict, random_state):
 
 def objective(trial: optuna.Trial):
     defaults = {
-        'lr': trial.suggest_categorical('lr', [8e-5, 1e-4, 2e-4]),
-        'OT_max_iter': trial.suggest_categorical('OT_max_iter', [50]),
-        'encoder_lr': trial.suggest_categorical('encoder_lr', [1e-6, 3e-6, 5e-6]),
+        'lr': trial.suggest_categorical('lr', [8e-7, 1e-6, 2e-6]),
+        'OT_max_iter': trial.suggest_categorical('OT_max_iter', [100]),
         'batch_size': trial.suggest_categorical('batch_size', [8]),
         'warmup_ratio': 0.1,
         'num_epoches': trial.suggest_categorical('num_epoches', [15]), # 
-        'use_pretrained_wemb': trial.suggest_categorical('wemb', [True]),
-        'regular_loss_weight': trial.suggest_categorical('regular_loss_weight', [0.1]),
-        'OT_loss_weight': trial.suggest_categorical('OT_loss_weight', [0.1]),
-        'distance_emb_size': trial.suggest_categorical('distance_emb_size', [0]),
-        # 'gcn_outp_size': trial.suggest_categorical('gcn_outp_size', [256, 512]),
-        'seed': trial.suggest_int('seed', 1, 10000, log=True),
-        'gcn_num_layers': trial.suggest_categorical('gcn_num_layers', [2, 3, 4]),
-        'hidden_size': trial.suggest_categorical('hidden_size', [768]),
-        'rnn_num_layers': trial.suggest_categorical('rnn_num_layers', [1]),
-        'fn_actv': trial.suggest_categorical('fn_actv', ['leaky_relu']), # 'relu', 'tanh', 'hardtanh', 'silu'
-        'residual_type': trial.suggest_categorical('residual_type', ['addtive'])
+        'seed': 1741, # trial.suggest_int('seed', 1, 10000, log=True),
+        'rnn_hidden_size': trial.suggest_categorical('rnn_hidden_size', [512, 768]),
+        'rnn_num_layers': trial.suggest_categorical('rnn_num_layers', [1, 2]),
+        'sent_transport_cost': trial.suggest_categorical('sent_transport_cost', [0.05, 0.1, 0.2]),
+        'word_transport_cost': trial.suggest_categorical('word_transport_cost', [0.05, 0.1, 0.2]),
+        'fine_tune_sentence_level': False,
+        'dropout': trial.suggest_categorical('dropout', [0.5]),
+        'sentence_null_prob': trial.suggest_categorical('sentence_null_prob', [0.5]),
+        'word_null_prob': trial.suggest_categorical('word_null_prob', [0.5])
     }
 
     random_state = defaults['seed']

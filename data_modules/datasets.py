@@ -16,8 +16,6 @@ def register_dataset(dataset_class: BaseDataset):
 
 def load_dataset(name:str,
                 tokenizer: str,
-                scratch_tokenizer: str,
-                encoder: str,
                 data_dir: str,
                 max_input_length: int,
                 seed: int = None,
@@ -27,8 +25,6 @@ def load_dataset(name:str,
     '''
     return DATASETS[name](
         tokenizer=tokenizer,
-        scratch_tokenizer_file=scratch_tokenizer,
-        encoder_model=encoder,
         data_dir=data_dir,
         max_input_length=max_input_length,
         seed=seed,

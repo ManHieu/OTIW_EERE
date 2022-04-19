@@ -24,11 +24,6 @@ class DataTrainingArguments:
         metadata= {"help": "The tokenizer used to prepare data"}
     )
 
-    encoder: str = field(
-        default = '/vinai/hieumdt/pretrained_models/models/roberta-base',
-        metadata= {"help": "The path of encoder model"}
-    )
-
     max_seq_length: int = field(
         default=512,
         metadata={
@@ -67,19 +62,14 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata= {"help": "Number labels in this dataset"}
     )
     
-    loss_weights: List[float] = field(
+    sent_transport_cost: List[float] = field(
         default = None,
-        metadata= {"help": "Weight for Cross-entropy loss"}
+        metadata= {"help": "Weight for sentences transportation plan cost"}
     )
 
-    regular_loss_weight: float = field(
-        default =  0.1,
-        metadata= {"help": "Weight of regularization loss"}
-    )
-
-    OT_loss_weight: float = field(
-        default =  0.1,
-        metadata= {"help": "Weight of OT loss (cost of transportation plan)"}
+    word_transport_cost: List[float] = field(
+        default = None,
+        metadata= {"help": "Weight for words transportation plan cost"}
     )
 
     max_seq_len: int = field(
@@ -87,14 +77,14 @@ class TrainingArguments(transformers.TrainingArguments):
         metadata= {"help": "Max lengh of sequence counted by tokens"}
     )
 
-    encoder_lr: float = field(
-        default=5e-5,
-        metadata={"help": "Learning rate of encoder"}
+    lr: float = field(
+        default=1e-6,
+        metadata={"help": "Learning rate of other layers"}
     )
 
-    lr: float = field(
-        default=5e-4,
-        metadata={"help": "Learning rate of other layers"}
+    fine_tune_sentence_level: bool = field(
+        default=False,
+        metadata={"help": "turning encode model (pretrain model) of sentences level"}
     )
 
     num_epoches : int = field(
@@ -106,32 +96,12 @@ class TrainingArguments(transformers.TrainingArguments):
 
 @dataclass 
 class ModelArguments:
-    encoder_name_or_path: str = field(
+    pretrained_model_name_or_path: str = field(
         default = '/vinai/hieumdt/pretrained_models/models/roberta-base',
-        metadata= {"help": "The path of encoder model"}
+        metadata= {"help": "The path of pretrained model"}
     )
 
-    use_pretrained_wemb: bool = field(
-        default = True,
-        metadata= {"help": "Use glove trained word embedding"}
-    )
-
-    distance_emb_size: int = field(
-        default = 0,
-        metadata= {"help": "Embedding size of distance to triggers"}
-    )
-
-    gcn_outp_size: int = field(
-        default = 512,
-        metadata= {"help": "Output size of GCN"}
-    )
-
-    gcn_num_layers: int = field(
-        default = 5,
-        metadata= {"help": "Number layer of convolution layers in GCN"}
-    )
-
-    hidden_size: int = field(
+    rnn_hidden_size: int = field(
         default = 0,
         metadata= {"help": "hidden layer size"}
     )
@@ -166,12 +136,15 @@ class ModelArguments:
         metadata= {"help": "Type of reduction to compute cost in OT"}
     )
 
-    fn_actv: str = field(
-        default = 'relu',
-        metadata= {"help": "Active function of classifier"}
+    sentence_null_prob: float = field(
+        default = 0.5,
+        metadata= {"help": "maginal probability of null in sentence level"}
     )
     
-
+    word_null_prob: float = field(
+        default = 0.5,
+        metadata= {"help": "maginal probability of null in word level"}
+    )
 
 
 
